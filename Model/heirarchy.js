@@ -255,9 +255,9 @@ export class Arc {
 export class End_Effector extends Arc {
     constructor(id, scene, location = identity(), parent = null) {
         super(id, scene, location, parent);
-        this.max_iterations = 120; // Maximum CCD iterations
-        this.threshold = 0.1; // Minimum error threshold to stop
-        this.damping_factor = 0.5; // Smooths rotation changes
+        this.max_iterations = 500; // Maximum CCD iterations
+        this.threshold = 0.01; // Minimum error threshold to stop
+        this.damping_factor = 0.01; // Smooths rotation changes
     }
 
     solve_ik(target) {
@@ -301,7 +301,7 @@ export class End_Effector extends Arc {
         
         // Prevent erratic rotations when target is out of range
         if (joint_pos.distanceTo(target) > max_reach) {
-            angle *= 0.5; // Reduce rotation impact if target is beyond reach
+            angle *= 0.3; // Reduce rotation impact if target is beyond reach
         }
         
         joint.node.core.rotateOnAxis(axis, angle);
@@ -334,7 +334,9 @@ export class End_Effector extends Arc {
     get_chain_length(joints) {
         let length = 0;
         for (let i = 1; i < joints.length; i++) {
-            length += joints[i - 1].get_global_position().distanceTo(joints[i].get_global_position());
+            // length += joints[i - 1].get_global_position().distanceTo(joints[i].get_global_position());
+            length += joints[i].length
+            // console.log(joints[i].length)
         }
         return length;
     }
@@ -345,8 +347,8 @@ export class End_Effector extends Arc {
     }
 
     clamp_angle(joint, angle) {
-        let min_angle = -Math.PI * 4; 
-        let max_angle = Math.PI * 4;
+        let min_angle = -Math.PI * 0.5; 
+        let max_angle = Math.PI * 0.5 ;
         return Math.max(min_angle, Math.min(max_angle, angle));
     }
 }

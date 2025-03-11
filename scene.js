@@ -6,7 +6,7 @@ import { Mesh, Quaternion } from 'three/webgpu';
 import {hidden, shades, shapes, color, v3, m4, identity, translation, make_obj, set_pos} from './Model/defs.js'
 import { Arc, End_Effector } from './Model/heirarchy.js';
 import { PlayerModel} from './Model/model.js'
-
+import {HermiteCurve} from './Model/hermite.js'
 
 
 export class FloppyFists {
@@ -22,6 +22,9 @@ export class FloppyFists {
     
         this.camera = new T.PerspectiveCamera( 75, window.innerWidth / window.innerHeight, 1, 10000 );
         this.camera.position.set( 0.0, 40,  50 );
+
+        // this.camera = new T.PerspectiveCamera( 75, window.innerWidth / window.innerHeight, 1, 10000 );
+        // this.camera.position.set( 50, 22,  0);
     
         this.scene = new T.Scene();
         this.scene.background = new T.Color( 0x444488 );
@@ -127,16 +130,15 @@ export class FloppyFists {
          *******************************************/
         this.t = 0;
         
-        // this.camera.position.set( 0.0, 300, 200 * 3.5 );
         let floor = new T.Mesh(shapes.box(1400, 0.1, 1400), color(120, 120, 120));
         this.scene.add(floor)
         this.scene.add(this.circle);
 
         // FOLLOW HANDS
-        this.l_ball = make_obj(shapes.ball(1.5), color(), this.player.get_pos_l_hand())
-        this.r_ball = make_obj(shapes.ball(1.5), color(), this.player.get_pos_r_hand())
-        this.scene.add(this.l_ball)
-        this.scene.add(this.r_ball)
+        // this.l_ball = make_obj(shapes.ball(1.5), color(), this.player.get_pos_l_hand())
+        // this.r_ball = make_obj(shapes.ball(1.5), color(), this.player.get_pos_r_hand())
+        // this.scene.add(this.l_ball)
+        // this.scene.add(this.r_ball)
     }
 
     onWindowResize() {
@@ -172,16 +174,29 @@ export class FloppyFists {
         let l_pos = this.player.l_arm.get_global_position()
 
         // Some weird reason, target position needs z>0
-        this.target_r = v3(r_pos.x + 2, r_pos.y + rad * (Math.cos(this.t) - 1), r_pos.z + 0.1);
-        this.target_l = v3(l_pos.x - rad * Math.sin(this.t), l_pos.y + rad * Math.sin(this.t), l_pos.z + rad * Math.cos(this.t));
+        // this.target_r = v3(r_pos.x + 2, r_pos.y + rad * (Math.cos(this.t) - 1), r_pos.z + 0.1);
+        // this.target_l = v3(l_pos.x - rad * Math.sin(this.t), l_pos.y + rad * Math.sin(this.t), l_pos.z + rad * Math.cos(this.t));
         // this.target = v3(11, 23, -1)
-        if(this.l_ball != null) {
-            set_pos(this.l_ball, this.target_l.x, this.target_l.y, this.target_l.z)
-            set_pos(this.r_ball, this.target_r.x, this.target_r.y, this.target_r.z)
-        }
+        // if(this.l_ball != null) {
+        //     set_pos(this.l_ball, this.target_l.x, this.target_l.y, this.target_l.z)
+        //     set_pos(this.r_ball, this.target_r.x, this.target_r.y, this.target_r.z)
+        // }
         // this.player.r_fore.inc_articulation([0, 0.1, 0])
-        this.player.move_r(this.target_r)
-        this.player.move_l(this.target_l)
+        // this.player.move_r(this.target_r)
+        // this.player.move_l(this.target_l)
+        // this.player.move_by(0,0,0.1)
+        this.player.rotate(0.01)
+
+        // if(this.t % 4 > 2) {
+            console.log(this.t)
+            let punch_anim = (t) => {return 0.5 * (Math.cos(t * 2 * Math.PI) + 1)}
+            let punch_l_pos = this.player.get_l_punch_pos(punch_anim(this.t));
+            this.player.move_l(punch_l_pos)
+
+            punch_anim = (t) => {return 0.5 * (Math.sin(t * 2 * Math.PI) + 1)}
+            let punch_r_pos = this.player.get_r_punch_pos(punch_anim(this.t));
+            this.player.move_r(punch_r_pos);
+        // }
 
         this.effect.render(this.scene, this.camera);
     }
