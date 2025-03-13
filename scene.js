@@ -5,6 +5,7 @@ import { deltaTime, max, step, vec3 } from 'three/tsl';
 import { Mesh, Quaternion, Matrix4 } from 'three/webgpu';
 import { Arc, End_Effector} from './Model/heirarchy.js';
 import { PlayerModel } from './Model/model.js';
+import { integrateCollisionSystem } from './Model/collision.js';
 
 // Updates : Use speace to Right Punch; F to Left Punch
 // QE to Rotate (Needed to test that IK works after rotating)
@@ -975,7 +976,7 @@ export class FloppyFists {
 
     init() {
         this.t = 0;
-        
+        this.collisionSystem = integrateCollisionSystem(this); // collision.js used here
         // Target ball for tracking fist targets
         this.circle = new T.Mesh(
             new T.SphereGeometry(1, 16, 16),
