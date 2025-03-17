@@ -1,13 +1,18 @@
 import * as T from 'three';
-import { OrbitControls, OutlineEffect, TextGeometry} from 'three/examples/jsm/Addons.js';
+import {OrbitControls, OutlineEffect, OutlinePass, TextGeometry} from 'three/examples/jsm/Addons.js';
 import Stats from 'three/examples/jsm/libs/stats.module.js';
-import { deltaTime, max, min, step, vec3 } from 'three/tsl';
+import { deltaTime, max, min, step, thickness, vec3 } from 'three/tsl';
 import { Mesh, Quaternion, Matrix4 } from 'three/webgpu';
 import { Arc, End_Effector} from './Model/heirarchy.js';
 import { PlayerModel } from './Model/model.js';
 import { integrateCollisionSystem } from './Model/collision.js';
 import {euler, symplectic, verlet, proj, calcSlideSpeed, player_mass, npc_mass, gravity, mu} from './Model/physics.js';
 import {Vector3} from "three";
+import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+import { RenderPixelatedPass } from 'three/addons/postprocessing/RenderPixelatedPass.js';
+import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
+import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 
 // Updates : Use speace to Right Punch; F to Left Punch
 // QE to Rotate (Needed to test that IK works after rotating)
@@ -223,6 +228,7 @@ class NPCCharacter extends Character {
         this.cvz = 0;
         this.ppx = 0;
         this.ppz = 0;
+        this.mesh = [];
 
         this.dof = 7;
         this.theta = [0, 0, 0, 0, 0, 0, 0]; 
@@ -524,6 +530,7 @@ class NPCCharacter extends Character {
                 mesh.matrixAutoUpdate = false;
                 this.scene.add(mesh);
                 node.object3D = mesh;
+                this.mesh.push(mesh)
             }
         };
         
@@ -704,9 +711,18 @@ export class FloppyFists {
         // Instructions overlay
         this.createInstructions();
 
-        // Lights
+        // Lights & Rendering
         this.setupLights();
-        this.effect = new OutlineEffect(this.renderer);
+        this.effect =  new EffectComposer(this.renderer);
+
+        this.outlinePass = new OutlinePass(new T.Vector2(0.1, 0.1), this.scene, this.camera)
+        this.effect.addPass(this.outlinePass)
+
+        const renderPass = new RenderPixelatedPass(9, this.scene, this.camera);
+        this.effect.addPass(renderPass);
+
+        const outputPass = new OutputPass();
+        this.effect.addPass(outputPass)
 
         window.addEventListener('resize', this.onWindowResize.bind(this));
 
@@ -722,11 +738,12 @@ export class FloppyFists {
         this.mainCharacter = new MainCharacter(this.scene);
         this.mainCharacter.player.cam = this.camera;
         this.mainCharacter.player.core.node.core.add(this.camera);
-
+        this.outlinePass.selectedObjects.push(this.mainCharacter.player.core.node.core);
         
         // Create NPCs
         this.npcs = [];
-        this.createNPCs(12);
+        this.createNPCs(12, this.outlinePass.selectedObjects);
+
         
         this.init();
     }
@@ -771,12 +788,13 @@ export class FloppyFists {
         
         // Floor
         const floorMaterial = color(60, 60, 70);
-        const floor = make_obj(
+        this.floor = make_obj(
             shapes.box(this.arenaSize*2, 1, this.arenaSize*2),
             floorMaterial,
             translation(0, -1, 0)
         );
-        this.scene.add(floor);
+        this.out
+        this.scene.add(this.floor);
         
         // Ceiling
         const ceilingMaterial = color(40, 40, 50);
@@ -959,6 +977,7 @@ export class FloppyFists {
             const z = Math.sin(angle) * radius;
             
             const npc = new NPCCharacter(this.scene, new T.Vector3(x, 0, z), 3);
+            
             this.npcs.push(npc);
         }
     }
