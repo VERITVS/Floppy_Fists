@@ -43,7 +43,7 @@ const dist = (v1, v2) => {
 }
 
 function make_obj(model = shapes.ball(5), material = color(), matrix = identity()){
-    let obj = new T.Mesh(model, material);
+    let obj = new T.Mesh(model, material);e
     if(matrix instanceof T.Vector3) matrix = translation(matrix.x, matrix.y, matrix.z)
     obj.applyMatrix4(matrix);
     return obj;

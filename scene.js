@@ -12,7 +12,7 @@ import {Vector3} from "three";
 // Updates : Use speace to Right Punch; F to Left Punch
 // QE to Rotate (Needed to test that IK works after rotating)
 const hidden = new T.MeshToonMaterial({visible: false})
-const shades = new Uint8Array( 40 );
+const shades = new Uint8Array( 128 );
 for ( let c = 0; c <= shades.length; c ++ ) {
     shades[ c ] = ( c /shades.length) * 256;
 }
@@ -138,8 +138,8 @@ class MainCharacter extends Character {
         this.player = new PlayerModel(scene, position);
         this.l_ball = make_obj(shapes.ball(1.5), color(255, 0, 0));
         this.r_ball = make_obj(shapes.ball(1.5), color(0, 0, 255));
-        this.scene.add(this.l_ball);
-        this.scene.add(this.r_ball);
+        // this.scene.add(this.l_ball);
+        // this.scene.add(this.r_ball);
         this.state = {
             punchSpeed: 2
         }
@@ -708,10 +708,6 @@ export class FloppyFists {
         this.setupLights();
         this.effect = new OutlineEffect(this.renderer);
 
-        // this.controls = new OrbitControls(this.camera, this.renderer.domElement);
-        // this.controls.minDistance = 30;
-        // this.controls.maxDistance = 2000;
-        // this.controls.maxPolarAngle = Math.PI/2 - 0.05;
         window.addEventListener('resize', this.onWindowResize.bind(this));
 
         this.clock = new T.Clock();
@@ -752,23 +748,20 @@ export class FloppyFists {
     
     setupLights() {
         //Main light
-        this.particleLight = new T.Mesh(
-            new T.SphereGeometry(2, 8, 8),
-            new T.MeshBasicMaterial({ color: 0xffffff })
-        );
+        this.particleLight = new T.Group;
         this.scene.add(this.particleLight);
-        this.scene.add(new T.AmbientLight(0xa1a1a1, 3));
+        this.scene.add(new T.AmbientLight(0xa1a1a1, 0.2));
         
         // Point light
-        this.pointLight = new T.PointLight(0xffffff, 2, 800, 0);
-        this.particleLight.add(this.pointLight);
+        this.pointLight = new T.PointLight(0xffffff, 3, 1000, 0.2);
+        // this.particleLight.add(this.pointLight);
         
         // Colored lights
-        this.redSpotlight = new T.SpotLight(0xff2222, 50, 100, Math.PI/6, 0.5);
+        this.redSpotlight = new T.PointLight(0xff0000, 4, 1000, 0.3);
         this.redSpotlight.position.set(40, 40, 40);
         this.scene.add(this.redSpotlight);
         
-        this.blueSpotlight = new T.SpotLight(0x2222ff, 50, 100, Math.PI/6, 0.5);
+        this.blueSpotlight = new T.PointLight(0x0000ff, 4, 1000, 0.3);
         this.blueSpotlight.position.set(-40, 40, -40);
         this.scene.add(this.blueSpotlight);
     }
@@ -981,6 +974,9 @@ export class FloppyFists {
         );
         this.circle.position.set(0, 20, 0);
 
+        this.particleLight.position.set(0, 100, 0);
+
+
         /*          
         *   INPUTS  
         */  
@@ -1028,8 +1024,6 @@ export class FloppyFists {
                     break;
             }    
         });
-
-        
 
         window.addEventListener("keyup", (event) => {
             let keyCode = event.code;
@@ -1084,18 +1078,14 @@ export class FloppyFists {
         let dt = this.clock.getDelta();
         this.t += dt;
         this.lightTime += dt;
-        
-        // Main light
-        const lightX = Math.sin(this.t) * this.arenaSize * 0.7;
-        const lightZ = Math.cos(this.t * 0.6) * this.arenaSize * 0.7;
-        this.particleLight.position.set(lightX, 20, lightZ);
-        
+         
         // Spotlights
-        this.redSpotlight.position.x = Math.sin(this.t * 0.3) * this.arenaSize * 0.8;
-        this.redSpotlight.position.z = Math.cos(this.t * 0.4) * this.arenaSize * 0.8;
+        let light_speed = 2;
+        this.redSpotlight.position.x = Math.sin(this.t * 0.3 * light_speed) * this.arenaSize * 0.6;
+        this.redSpotlight.position.z = Math.cos(this.t * 0.4 * light_speed) * this.arenaSize * 0.6;
         
-        this.blueSpotlight.position.x = -Math.sin(this.t * 0.4) * this.arenaSize * 0.8;
-        this.blueSpotlight.position.z = -Math.cos(this.t * 0.3) * this.arenaSize * 0.8;
+        this.blueSpotlight.position.x = -Math.sin(this.t * 0.4 * light_speed) * this.arenaSize * 0.6;
+        this.blueSpotlight.position.z = -Math.cos(this.t * 0.3 * light_speed) * this.arenaSize * 0.6;
         
         // Circle movement - can use this to test targeting
         this.circle.position.x = Math.cos(this.t) * this.arenaSize * 0.5;
