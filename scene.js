@@ -1063,7 +1063,7 @@ export class FloppyFists {
         forward.normalize();
         right.crossVectors(forward, this.camera.up).normalize();
     
-        const speed = 0.5;
+        const speed = 1.5;
         const adjustedMovement = v3(
             right.x * this.input_dir.x + forward.x * this.input_dir.z,
             0,
