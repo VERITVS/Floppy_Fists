@@ -1,5 +1,5 @@
 import * as T from 'three';
-import { Object3D, Matrix4 } from 'THREE/webgpu';
+import { Object3D, Matrix4 } from 'three/webgpu';
 import {hidden, shades, shapes, color, v3, m4, identity, translation, make_obj, set_pos, dist} from './defs.js'
 
 export class Node {
