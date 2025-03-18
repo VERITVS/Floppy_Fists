@@ -13,6 +13,7 @@ import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { RenderPixelatedPass } from 'three/addons/postprocessing/RenderPixelatedPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
+import { Audio, AudioListener, AudioLoader } from 'three/webgpu';
 
 // Updates : Use speace to Right Punch; F to Left Punch
 // QE to Rotate (Needed to test that IK works after rotating)
@@ -111,6 +112,10 @@ class Vector4 {
         this.z = z;
         this.w = w;
     }
+}
+
+class SFX {
+
 }
 
 // Base Character class that both main character and NPCs will inherit from
@@ -515,7 +520,8 @@ class NPCCharacter extends Character {
     createMeshes() {
         const hue = 25 + Math.random() * 10; // Skin tone hue variation
         const skinTone = new T.Color().setHSL(hue/360, 0.3 + Math.random() * 0.2, 0.7 + Math.random() * 0.2);
-        const bodyMaterial = new T.MeshPhongMaterial({ color: skinTone });
+        // const bodyMaterial = new T.MeshPhongMaterial({ color: skinTone });
+        const bodyMaterial = color()
         
         // Function to create and add a mesh for a node
         const createNodeMesh = (node, material) => {
@@ -530,6 +536,7 @@ class NPCCharacter extends Character {
                 mesh.matrixAutoUpdate = false;
                 this.scene.add(mesh);
                 node.object3D = mesh;
+
                 this.mesh.push(mesh)
             }
         };
@@ -613,7 +620,10 @@ class NPCCharacter extends Character {
         else {
             //the acceleration is a vector with same components on both x and z; it is calculated as a = F/mass = mu * N / mass = mu * mass * gravity / mass = mu * gravity.
             //it is always negative, since it's always in reverse direction of velocity and the velocity magnitude (speed) is always non-negative
-            let ca = gravity * mu;
+            // let ca = gravity * mu;
+            this.cvx *= 0.975;
+            this.cvz *= 0.975;
+            let ca = gravity * Math.sqrt(this.cvx ** 2 + this.cvz ** 2) * mu * 0.1;
             //note that here cvx is a directed velocity value, which means it could either be positive or negative, and acceleration should always be opposite sign
             //we can use either forward euler or symplectic integration to simulate the next positions; here we use symplectic because it is good for fast, continuous movement
             //verlet integration is not very fitting to simulate this type of motion (it is good at simulating systems where certain quantities are conserved and motions are periodic and predictable, such as planetary motions), and it is kind of buggy here, so we will not use it
@@ -719,6 +729,7 @@ export class FloppyFists {
         this.effect.addPass(this.outlinePass)
 
         const renderPass = new RenderPixelatedPass(9, this.scene, this.camera);
+        // const renderPass = new RenderPass( this.scene, this.camera);
         this.effect.addPass(renderPass);
 
         const outputPass = new OutputPass();
@@ -742,9 +753,11 @@ export class FloppyFists {
         
         // Create NPCs
         this.npcs = [];
-        this.createNPCs(12, this.outlinePass.selectedObjects);
+        this.createNPCs(12);
 
-        
+        this.punch_sounds = [];
+        this.hit_sounds = [];
+        this.createSFX(this.punch_sounds, this.hit_sounds);
         this.init();
     }
     
@@ -781,6 +794,69 @@ export class FloppyFists {
         this.blueSpotlight = new T.PointLight(0x0000ff, 4, 1000, 0.3);
         this.blueSpotlight.position.set(-40, 40, -40);
         this.scene.add(this.blueSpotlight);
+    }
+    
+    createSFX(punch_sounds, hit_sounds) {
+        const audioLoader = new AudioLoader();
+
+        const listener = new AudioListener();
+        this.camera.add( listener );
+
+        for(let i = 0; i < 10; i++) {
+            audioLoader.load( 'Sounds/punch1.mp3', function ( buffer ) {
+                    const audio = new Audio( listener );
+                    audio.setBuffer( buffer );
+                    hit_sounds.push(audio);
+                }
+            );
+
+            audioLoader.load( 'Sounds/punch2.mp3', function ( buffer ) {
+                const audio = new Audio( listener );
+                audio.setBuffer( buffer );
+                hit_sounds.push(audio);
+            }
+            );
+
+            audioLoader.load( 'Sounds/punch3.mp3', function ( buffer ) {
+                    const audio = new Audio( listener );
+                    audio.setBuffer( buffer );
+                    hit_sounds.push(audio);
+                }
+            );
+
+            audioLoader.load( 'Sounds/punch4.mp3', function ( buffer ) {
+                const audio = new Audio( listener );
+                audio.setBuffer( buffer );
+                hit_sounds.push(audio);
+            });
+
+            audioLoader.load( 'Sounds/punch5.mp3', function ( buffer ) {
+                const audio = new Audio( listener );
+                audio.setBuffer( buffer );
+                hit_sounds.push(audio);
+            });
+
+            audioLoader.load( 'Sounds/woosh1.mp3', function ( buffer ) {
+                const audio = new Audio( listener );
+                audio.setBuffer( buffer );
+                punch_sounds.push(audio);
+            });
+
+            audioLoader.load( 'Sounds/woosh2.mp3', function ( buffer ) {
+                const audio = new Audio( listener );
+                audio.setBuffer( buffer );
+                punch_sounds.push(audio);
+            });
+        }
+        
+    }
+
+    playHit() {
+        this.hit_sounds[Math.floor(Math.random() * this.hit_sounds.length)].play()
+    }
+
+    playAttack() {
+        this.punch_sounds[Math.floor(Math.random() * this.punch_sounds.length)].play();
     }
     
     createArena() {
@@ -1097,6 +1173,14 @@ export class FloppyFists {
         let dt = this.clock.getDelta();
         this.t += dt;
         this.lightTime += dt;
+
+        if(this.mainCharacter.player.r_time == 2) { 
+            this.playAttack();
+        };
+
+        if(this.mainCharacter.player.l_time == 2) { 
+            this.playAttack();
+        };
          
         // Spotlights
         let light_speed = 2;
@@ -1124,6 +1208,7 @@ export class FloppyFists {
                     if (collision.object2.type === 'main') {
                         //object1 is npc and object2 is main
                         if ((collision.object2.part === 'right_hand' && this.mainCharacter.player.r_time > 0) || (collision.object2.part === 'left_hand' && this.mainCharacter.player.l_time > 0)) {
+                            if(this.mainCharacter.player.l_time + this.mainCharacter.player.r_time > 0) this.playHit();
                             // console.log(`${collision.object2.part} punch collision detected.\n`);
                             collision.object1.owner.isSliding = true;
                             // console.log(`isSliding STATUS CHANGE: ${collision.object1.owner.isSliding}`);
@@ -1161,6 +1246,7 @@ export class FloppyFists {
                         let max_punch_time = 1.15; //Punch Time Starts from 2, ticks down to 0, fully extended at 1
                         if ((collision.object1.part === 'right_hand' && this.mainCharacter.player.r_time > min_punch_time && this.mainCharacter.player.r_time < max_punch_time) || 
                             (collision.object1.part === 'left_hand' && this.mainCharacter.player.l_time > min_punch_time && this.mainCharacter.player.l_time < max_punch_time)) {
+                            if(this.mainCharacter.player.l_time + this.mainCharacter.player.r_time > 0) this.playHit();
                             // console.log(`${collision.object2.part} punch collision detected.\n`);
                             collision.object2.owner.isSliding = true;
                             // console.log(`isSliding STATUS CHANGE: ${collision.object2.owner.isSliding}`);
