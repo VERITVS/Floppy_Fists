@@ -13,7 +13,7 @@ import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { RenderPixelatedPass } from 'three/addons/postprocessing/RenderPixelatedPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
-import { Audio, AudioListener, AudioLoader } from 'three/webgpu';
+import { Game } from './Model/game.js';
 
 // Updates : Use speace to Right Punch; F to Left Punch
 // QE to Rotate (Needed to test that IK works after rotating)
@@ -112,10 +112,6 @@ class Vector4 {
         this.z = z;
         this.w = w;
     }
-}
-
-class SFX {
-
 }
 
 // Base Character class that both main character and NPCs will inherit from
@@ -520,8 +516,7 @@ class NPCCharacter extends Character {
     createMeshes() {
         const hue = 25 + Math.random() * 10; // Skin tone hue variation
         const skinTone = new T.Color().setHSL(hue/360, 0.3 + Math.random() * 0.2, 0.7 + Math.random() * 0.2);
-        // const bodyMaterial = new T.MeshPhongMaterial({ color: skinTone });
-        const bodyMaterial = color()
+        const bodyMaterial = new T.MeshPhongMaterial({ color: skinTone });
         
         // Function to create and add a mesh for a node
         const createNodeMesh = (node, material) => {
@@ -536,7 +531,6 @@ class NPCCharacter extends Character {
                 mesh.matrixAutoUpdate = false;
                 this.scene.add(mesh);
                 node.object3D = mesh;
-
                 this.mesh.push(mesh)
             }
         };
@@ -620,10 +614,7 @@ class NPCCharacter extends Character {
         else {
             //the acceleration is a vector with same components on both x and z; it is calculated as a = F/mass = mu * N / mass = mu * mass * gravity / mass = mu * gravity.
             //it is always negative, since it's always in reverse direction of velocity and the velocity magnitude (speed) is always non-negative
-            // let ca = gravity * mu;
-            this.cvx *= 0.975;
-            this.cvz *= 0.975;
-            let ca = gravity * Math.sqrt(this.cvx ** 2 + this.cvz ** 2) * mu * 0.1;
+            let ca = gravity * mu;
             //note that here cvx is a directed velocity value, which means it could either be positive or negative, and acceleration should always be opposite sign
             //we can use either forward euler or symplectic integration to simulate the next positions; here we use symplectic because it is good for fast, continuous movement
             //verlet integration is not very fitting to simulate this type of motion (it is good at simulating systems where certain quantities are conserved and motions are periodic and predictable, such as planetary motions), and it is kind of buggy here, so we will not use it
@@ -729,7 +720,6 @@ export class FloppyFists {
         this.effect.addPass(this.outlinePass)
 
         const renderPass = new RenderPixelatedPass(9, this.scene, this.camera);
-        // const renderPass = new RenderPass( this.scene, this.camera);
         this.effect.addPass(renderPass);
 
         const outputPass = new OutputPass();
@@ -753,11 +743,9 @@ export class FloppyFists {
         
         // Create NPCs
         this.npcs = [];
-        this.createNPCs(12);
+        this.createNPCs(12, this.outlinePass.selectedObjects);
 
-        this.punch_sounds = [];
-        this.hit_sounds = [];
-        this.createSFX(this.punch_sounds, this.hit_sounds);
+        
         this.init();
     }
     
@@ -794,69 +782,6 @@ export class FloppyFists {
         this.blueSpotlight = new T.PointLight(0x0000ff, 4, 1000, 0.3);
         this.blueSpotlight.position.set(-40, 40, -40);
         this.scene.add(this.blueSpotlight);
-    }
-    
-    createSFX(punch_sounds, hit_sounds) {
-        const audioLoader = new AudioLoader();
-
-        const listener = new AudioListener();
-        this.camera.add( listener );
-
-        for(let i = 0; i < 10; i++) {
-            audioLoader.load( 'Sounds/punch1.mp3', function ( buffer ) {
-                    const audio = new Audio( listener );
-                    audio.setBuffer( buffer );
-                    hit_sounds.push(audio);
-                }
-            );
-
-            audioLoader.load( 'Sounds/punch2.mp3', function ( buffer ) {
-                const audio = new Audio( listener );
-                audio.setBuffer( buffer );
-                hit_sounds.push(audio);
-            }
-            );
-
-            audioLoader.load( 'Sounds/punch3.mp3', function ( buffer ) {
-                    const audio = new Audio( listener );
-                    audio.setBuffer( buffer );
-                    hit_sounds.push(audio);
-                }
-            );
-
-            audioLoader.load( 'Sounds/punch4.mp3', function ( buffer ) {
-                const audio = new Audio( listener );
-                audio.setBuffer( buffer );
-                hit_sounds.push(audio);
-            });
-
-            audioLoader.load( 'Sounds/punch5.mp3', function ( buffer ) {
-                const audio = new Audio( listener );
-                audio.setBuffer( buffer );
-                hit_sounds.push(audio);
-            });
-
-            audioLoader.load( 'Sounds/woosh1.mp3', function ( buffer ) {
-                const audio = new Audio( listener );
-                audio.setBuffer( buffer );
-                punch_sounds.push(audio);
-            });
-
-            audioLoader.load( 'Sounds/woosh2.mp3', function ( buffer ) {
-                const audio = new Audio( listener );
-                audio.setBuffer( buffer );
-                punch_sounds.push(audio);
-            });
-        }
-        
-    }
-
-    playHit() {
-        this.hit_sounds[Math.floor(Math.random() * this.hit_sounds.length)].play()
-    }
-
-    playAttack() {
-        this.punch_sounds[Math.floor(Math.random() * this.punch_sounds.length)].play();
     }
     
     createArena() {
@@ -1137,6 +1062,8 @@ export class FloppyFists {
                     break;
             }    
         });
+
+        this.game = new Game(this);
     }
 
     onWindowResize() {
@@ -1173,14 +1100,6 @@ export class FloppyFists {
         let dt = this.clock.getDelta();
         this.t += dt;
         this.lightTime += dt;
-
-        if(this.mainCharacter.player.r_time == 2) { 
-            this.playAttack();
-        };
-
-        if(this.mainCharacter.player.l_time == 2) { 
-            this.playAttack();
-        };
          
         // Spotlights
         let light_speed = 2;
@@ -1197,7 +1116,59 @@ export class FloppyFists {
         // Update main character
         this.mainCharacter.update(this.t, dt, this.movement, this.mouse_pos);
         // this.mainCharacter.checkBoundaries(this.arenaSize);
-
+    
+        // Update and render game UI elements if game exists
+        if (this.game) {
+            // Update timer display if it doesn't exist, create it just once
+            if (!this.timerDisplay) {
+                this.timerDisplay = document.createElement('div');
+                this.timerDisplay.style.position = 'absolute';
+                this.timerDisplay.style.top = '50px';
+                this.timerDisplay.style.left = '20px';
+                this.timerDisplay.style.color = '#ffffff';
+                this.timerDisplay.style.fontSize = '24px';
+                this.timerDisplay.style.fontFamily = 'Arial, sans-serif';
+                this.timerDisplay.style.fontWeight = 'bold';
+                this.timerDisplay.style.textShadow = '2px 2px 4px #000000';
+                document.body.appendChild(this.timerDisplay);
+            }
+            
+            // Update NPC counter display if it doesn't exist, create it just once
+            if (!this.npcCounter) {
+                this.npcCounter = document.createElement('div');
+                this.npcCounter.style.position = 'absolute';
+                this.npcCounter.style.top = '90px';
+                this.npcCounter.style.left = '20px';
+                this.npcCounter.style.color = '#ffffff';
+                this.npcCounter.style.fontSize = '24px';
+                this.npcCounter.style.fontFamily = 'Arial, sans-serif';
+                this.npcCounter.style.fontWeight = 'bold';
+                this.npcCounter.style.textShadow = '2px 2px 4px #000000';
+                document.body.appendChild(this.npcCounter);
+            }
+            
+            // Update level display if it doesn't exist, create it just once
+            if (!this.levelDisplay) {
+                this.levelDisplay = document.createElement('div');
+                this.levelDisplay.style.position = 'absolute';
+                this.levelDisplay.style.top = '130px';
+                this.levelDisplay.style.left = '20px';
+                this.levelDisplay.style.color = '#ffffff';
+                this.levelDisplay.style.fontSize = '24px';
+                this.levelDisplay.style.fontFamily = 'Arial, sans-serif';
+                this.levelDisplay.style.fontWeight = 'bold';
+                this.levelDisplay.style.textShadow = '2px 2px 4px #000000';
+                document.body.appendChild(this.levelDisplay);
+            }
+            
+            // Update text content for the displays
+            const minutes = Math.floor(this.game.totalTimeRemaining / 60);
+            const seconds = this.game.totalTimeRemaining % 60;
+            this.timerDisplay.textContent = `Time: ${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
+            //this.npcCounter.textContent = `NPCs: ${this.game.defeatedCount}/${this.game.npcsToDefeat}`;
+            //this.levelDisplay.textContent = `Level: ${this.game.level}`;
+        }
+    
         //James's part: handle punch process; define initial knock-back speed & direction given by punch on collision
         //check collision, calculate collided NPC's increase in speed due to knockback, and start sliding
         if (this.collisionSystem.collisionEvents.length > 0) {
@@ -1208,18 +1179,17 @@ export class FloppyFists {
                     if (collision.object2.type === 'main') {
                         //object1 is npc and object2 is main
                         if ((collision.object2.part === 'right_hand' && this.mainCharacter.player.r_time > 0) || (collision.object2.part === 'left_hand' && this.mainCharacter.player.l_time > 0)) {
-                            if(this.mainCharacter.player.l_time + this.mainCharacter.player.r_time > 0) this.playHit();
                             // console.log(`${collision.object2.part} punch collision detected.\n`);
                             collision.object1.owner.isSliding = true;
                             // console.log(`isSliding STATUS CHANGE: ${collision.object1.owner.isSliding}`);
                             //calculate force vector by assuming it to be the distance vector between main & npc's torso, from main to npc
                             let mc = collision.object2.owner.player;
                             let enemy = collision.object1.owner.position;
-
+    
                             let fx = (collision.object2.part === 'right_hand') ? enemy.x - mc.r_punch_start_pos.x:  
-                                                                                 enemy.x - mc.l_punch_start_pos.x;
+                                                                 enemy.x - mc.l_punch_start_pos.x;
                             let fz = (collision.object2.part === 'right_hand') ? enemy.z - mc.r_punch_start_pos.z:
-                                                                                 enemy.z - mc.l_punch_start_pos.z;
+                                                                 enemy.z - mc.l_punch_start_pos.z;
                             // console.log(`force vector direction: ${fx},0,${fz}`);
                             collision.object1.owner.slideDir = new T.Vector3(fx, 0, fz).normalize();
                             // console.log(`normalized force vector direction: ${collision.object1.owner.slideDir.x},${collision.object1.owner.slideDir.y},${collision.object1.owner.slideDir.z}`);
@@ -1241,34 +1211,30 @@ export class FloppyFists {
                     if (collision.object2.type === 'npc') {
                         //if this npc is already sliding (maybe punched already in previous frames), we skip its sliding state change
                         if (collision.object2.owner.isSliding === true) continue;
-
+    
                         let min_punch_time = 1.1;
                         let max_punch_time = 1.15; //Punch Time Starts from 2, ticks down to 0, fully extended at 1
                         if ((collision.object1.part === 'right_hand' && this.mainCharacter.player.r_time > min_punch_time && this.mainCharacter.player.r_time < max_punch_time) || 
                             (collision.object1.part === 'left_hand' && this.mainCharacter.player.l_time > min_punch_time && this.mainCharacter.player.l_time < max_punch_time)) {
-                            if(this.mainCharacter.player.l_time + this.mainCharacter.player.r_time > 0) this.playHit();
                             // console.log(`${collision.object2.part} punch collision detected.\n`);
                             collision.object2.owner.isSliding = true;
                             // console.log(`isSliding STATUS CHANGE: ${collision.object2.owner.isSliding}`);
                             //calculate force vector by assuming it to be the distance vector between main & npc's torso, from main to npc
-
+    
                             // Determine if Left or Right Hand Punching is closest
             
                             let mc = collision.object1.owner.player;
                             let enemy = collision.object2.owner.position;
-
+    
                             let fx = (collision.object1.part === 'right_hand') ? enemy.x - mc.r_punch_start_pos.x:  
-                                                                                 enemy.x - mc.l_punch_start_pos.x;
+                                                                 enemy.x - mc.l_punch_start_pos.x;
                             let fz = (collision.object1.part === 'right_hand') ? enemy.z - mc.r_punch_start_pos.z:
-                                                                                 enemy.z - mc.l_punch_start_pos.z;
-                            // console.log(`force vector direction: ${fx},0,${fz}`);
+                                                                 enemy.z - mc.l_punch_start_pos.z;
                             collision.object2.owner.slideDir = v3(fx, 0, fz).normalize();
-                            console.log(v3(fx, 0, fz).normalize())
-                            // console.log(`normalized force vector direction: ${collision.object2.owner.slideDir.x},${collision.object2.owner.slideDir.y},${collision.object2.owner.slideDir.z}`);
-                            let v2 = proj(collision.object2.owner.moveSpeed,collision.object2.owner.moveDir,collision.object2.owner.slideDir); //this is NPC's projected-speed's magnitude in the sliding direction
-                            // console.log(`moveSpeed:${collision.object2.owner.moveSpeed}, moveDir:(${collision.object2.owner.moveDir.x},${collision.object2.owner.moveDir.y},${collision.object2.owner.moveDir.z}), slideDir: (${collision.object2.owner.slideDir.x},${collision.object2.owner.slideDir.y},${collision.object2.owner.slideDir.z}), projected Speed Component along slideDir: ${v2}`);
+                            
+                            let v2 = proj(collision.object2.owner.moveSpeed,collision.object2.owner.moveDir,collision.object2.owner.slideDir); 
                             collision.object2.owner.slideSpeed = collision.object2.owner.moveSpeed + calcSlideSpeed(collision.object1.owner.state.punchSpeed,v2);
-                            // console.log(`slideSpeed:${collision.object2.owner.slideSpeed}`);
+                            
                             //record previous positions of the npc at this frame; for verlet integration
                             collision.object2.owner.ppx = collision.object2.owner.position.x;
                             collision.object2.owner.ppz = collision.object2.owner.position.z;
@@ -1287,7 +1253,8 @@ export class FloppyFists {
             npc.checkBoundaries(this.arenaSize);
             npc.draw();
         }
- 
+        
+        // Render the scene
         this.effect.render(this.scene, this.camera);
     }
 }
